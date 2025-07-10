@@ -1,0 +1,116 @@
+
+# hexeInvMC
+
+**Regresión inversa con incertidumbre en ambos ejes, basada en
+simulación Monte Carlo extendida**  
+Desarrollado por Immer Mauricio Caicedo González  
+Inspirado en la metrología, la intuición científica… y la libertad de
+las brujitas.
+
+------------------------------------------------------------------------
+
+## 🔍 ¿Qué hace este paquete?
+
+Permite estimar un valor de `x` (por ejemplo, concentración) a partir de
+un `y` observado (respuesta instrumental), incorporando:
+
+- Incertidumbre en ambos ejes (`ux`, `uy`)
+- Selección automática del mejor modelo (lineal o cuadrático)
+- Diagnóstico metrológico realista (outliers, R², heterocedasticidad)
+- Estimación por Monte Carlo extendido (10 000 simulaciones por defecto)
+- Visualización clara con errores bidimensionales y punto estimado
+  destacado
+
+------------------------------------------------------------------------
+
+## 🚀 Instalación
+
+``` r
+install.packages("devtools") # si no lo tienes
+devtools::install_github("ImmerMauricio/hexeInvMC")
+library(hexeInvMC)
+```
+
+------------------------------------------------------------------------
+
+## 🧪 Ejemplo de uso
+
+``` r
+x <- c(1.2, 1.9, 2.9, 4.0, 4.7, 5.9)
+ux <- c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2)
+y <- c(3.4, 4.4, 7.2, 8.5, 10.8, 13.5)
+uy <- c(0.2, 0.2, 0.2, 0.4, 0.4, 0.4)
+
+hexeInvMC(x, ux, y, uy, y0 = 10.5, uy0 = 0.25)
+```
+
+------------------------------------------------------------------------
+
+## 📊 ¿Cómo se simulan las incertidumbres?
+
+Puedes especificar la distribución que representa mejor tus
+incertidumbres:
+
+| Argumento | Opciones         | Cuándo usarlo                            |
+|-----------|------------------|------------------------------------------|
+| `dist_x`  | `"norm"`         | Errores tipo A bien caracterizados       |
+|           | `"unif"`         | Incertidumbre tipo B, sin preferencia    |
+|           | `"triangle"`     | Valor más probable con límites conocidos |
+| `dist_y`  | Igual que arriba | Para `y` (respuesta instrumental)        |
+| `dist_y0` | Igual que arriba | Para el valor observado a estimar        |
+
+> Por defecto se usa `"norm"` para todo.  
+> Esto se puede cambiar fácilmente en los argumentos.
+
+------------------------------------------------------------------------
+
+## 🧾 Resultado e interpretación
+
+La función imprime un resumen claro:
+
+- ✅ Modelo seleccionado (`lineal_simple` o `pol_cuadratico`)
+- ✅ Valor de `x` estimado
+- ✅ Incertidumbre típica combinada `uc(x)`
+- ✅ Diagnóstico estadístico:
+  - Outliers
+  - R² bajo
+  - Heterocedasticidad
+- ✅ Gráfico `ggplot2`:
+  - Línea de calibración
+  - Barras de error horizontales y verticales
+  - Punto rojo del valor estimado
+
+------------------------------------------------------------------------
+
+## 📚 Fundamentos
+
+Este paquete se inspira en:
+
+- 📘 ISO 8466-1 (1999): calibración lineal con incertidumbre en `y`
+- 📘 ISO/TS 28037 (2010): regresión con incertidumbre en ambos ejes
+- 📘 GUM (JCGM 100:2008): Guía para la expresión de la incertidumbre
+
+Pero supera sus limitaciones al:
+
+- ✅ Permitir regresión cuadrática con incertidumbre en `x`
+- ✅ Evitar el uso obligatorio de validaciones `chi²` que no aplican
+- ✅ Trabajar con simulación Monte Carlo extendida
+- ✅ Adaptarse a datos experimentales reales
+
+------------------------------------------------------------------------
+
+## ❤️ Autor
+
+Immer Mauricio Caicedo González  
+📧 <quimiometria@live.com>  
+📍 Bogotá, Colombia  
+🧪 Metrología, Quimiometría y Ciencia con alma
+
+------------------------------------------------------------------------
+
+> hexeInvMC no es solo un algoritmo.  
+> Es un acto de claridad científica… con respeto por el laboratorio
+> real.  
+> Y con un guiño invisible a quien alguna vez nos enseñó a intuir.
+
+🧚🪄️✨

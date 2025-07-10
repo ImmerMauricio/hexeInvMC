@@ -1,0 +1,19 @@
+Package: hexeInvMC
+Type: Package
+Title: Regresión inversa con incertidumbre y simulación Monte Carlo extendida
+Version: 1.1.5
+Authors@R: 
+    person(given = "Immer Mauricio",
+           family = "Caicedo González",
+           email = "quimiometria@live.com",
+           role = c("aut", "cre"))
+Description: Herramienta metrológica para realizar regresión inversa considerando incertidumbre en ambos ejes, basada en simulación Monte Carlo. Inspirado en ISO 8466-1, ISO/TS 28037 y GUM.
+License: MIT
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.1.0)
+Imports:
+    ggplot2,
+    car,
+    EnvStats
+RoxygenNote: 7.3.2
