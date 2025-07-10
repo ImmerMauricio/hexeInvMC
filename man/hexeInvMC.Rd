@@ -2,7 +2,7 @@
 % Please edit documentation in R/hexeInvMC.R
 \name{hexeInvMC}
 \alias{hexeInvMC}
-\title{hexeInvMC: Regresión inversa con incertidumbre}
+\title{hexeInvMC}
 \usage{
 hexeInvMC(
   x,
@@ -11,44 +11,47 @@ hexeInvMC(
   uy,
   y0,
   uy0,
-  n_sim = 10000,
   dist_x = "norm",
   dist_y = "norm",
-  dist_y0 = "norm"
+  dist_y0 = "norm",
+  n_sim = 10000
 )
 }
 \arguments{
-\item{x}{Vector numérico con valores de x (por ejemplo, concentración)}
+\item{x}{Vector numérico con los valores de concentración (x).}
 
-\item{ux}{Vector numérico con incertidumbre estándar asociada a x}
+\item{ux}{Vector numérico con las incertidumbres típicas de x.}
 
-\item{y}{Vector numérico con valores de y (por ejemplo, absorbancia)}
+\item{y}{Vector numérico con los valores de respuesta (y).}
 
-\item{uy}{Vector numérico con incertidumbre estándar asociada a y}
+\item{uy}{Vector numérico con las incertidumbres típicas de y.}
 
-\item{y0}{Valor de respuesta instrumental observado para estimar su correspondiente x}
+\item{y0}{Valor observado a invertir.}
 
-\item{uy0}{Incertidumbre estándar asociada a y0}
+\item{uy0}{Incertidumbre típica de y0.}
 
-\item{n_sim}{Número de simulaciones (por defecto 10000)}
+\item{dist_x}{Distribución para x: "norm", "unif" o "triangle".}
 
-\item{dist_x}{Distribución para simular x: "norm", "unif", "triangle"}
+\item{dist_y}{Distribución para y: "norm", "unif" o "triangle".}
 
-\item{dist_y}{Distribución para simular y: "norm", "unif", "triangle"}
+\item{dist_y0}{Distribución para y0: "norm", "unif" o "triangle".}
 
-\item{dist_y0}{Distribución para simular y0: "norm", "unif", "triangle"}
+\item{n_sim}{Número de simulaciones Monte Carlo. Por defecto 10000.}
 }
 \value{
-Lista con el modelo seleccionado, el valor estimado de x y su incertidumbre combinada uc(x).
-También imprime diagnóstico y genera una gráfica con ggplot2.
+Un resumen de resultados con x estimado, uc(x), modelo seleccionado y diagnóstico.
 }
 \description{
-Realiza estimación inversa considerando incertidumbre en ambos ejes mediante simulación Monte Carlo extendida.
+Regresión inversa con incertidumbre en ambos ejes utilizando simulación Monte Carlo extendida.
+Selección automática de modelo (lineal simple o cuadrático), diagnóstico y visualización.
 }
 \examples{
 x <- c(1.2, 1.9, 2.9, 4.0, 4.7, 5.9)
 ux <- c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2)
 y <- c(3.4, 4.4, 7.2, 8.5, 10.8, 13.5)
 uy <- c(0.2, 0.2, 0.2, 0.4, 0.4, 0.4)
-hexeInvMC(x, ux, y, uy, y0 = 10.5, uy0 = 0.25)
+hexeInvMC(x, ux, y, uy, y0 = 10.5, uy0 = 0.25,
+          dist_x = "norm", dist_y = "norm", dist_y0 = "norm",
+          n_sim = 10000)
+
 }
