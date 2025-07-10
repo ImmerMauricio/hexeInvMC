@@ -19,12 +19,14 @@ dist_y  <- "norm"
 dist_y0 <- "unif"
 
 # Ejecutar regresión inversa con simulación Monte Carlo extendida
+# Número de simulaciones ajustable (por defecto 10000)
 resultado <- hexeInvMC(
   x, ux, y, uy,
   y0 = y0, uy0 = uy0,
   dist_x = dist_x,
   dist_y = dist_y,
-  dist_y0 = dist_y0
+  dist_y0 = dist_y0,
+  n_sim = 10000
 )
 
 # Imprimir resultado
