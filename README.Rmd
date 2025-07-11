@@ -78,8 +78,10 @@ El paquete incluye:
 
 ---
 
-> hexeInvMC no es solo un algoritmo.
-> Es un acto de claridad científica… con respeto por el laboratorio real.
-> Y con un guiño invisible a quien alguna vez nos enseñó a intuir.
+> **In God we trust; all others must bring data**.
+> *William Edwards Deming*.
 
-> **Inspirado en la metrología química**... *y en una Brujita* 🧚🪄
+
+> Este paquete fue inspirado en una metrología química accesible    
+> para todos, buscando un mundo con medidas más confiables,  
+> ... *y en una Brujita* 🧚🪄
