@@ -1,3 +1,172 @@
+# =========================
+# File: R/print_hexeInvMC_result.R
+# =========================
+
+#' Imprimir resultado de hexeInvMC
+#'
+#' Método S3 para imprimir de forma ordenada el objeto resultado.
+#'
+#' @param x Objeto clase hexeInvMC_result.
+#' @param ... No usado.
+#' @export
+print.hexeInvMC_result <- function(x, ...) {
+
+  width <- getOption("width")
+  if (!is.finite(width) || width < 80) width <- 80
+
+  hr <- function(ch = "=") cat(strrep(ch, min(width, 100)), "\n", sep = "")
+  sec <- function(title) {
+    hr("=")
+    cat(title, "\n", sep = "")
+    hr("-")
+  }
+
+  fmt_num <- function(z, digits = 6) {
+    if (!is.finite(z)) return("NA")
+    formatC(z, format = "f", digits = digits)
+  }
+
+  fmt_p <- function(p) {
+    if (!is.finite(p)) return("NA")
+    format.pval(p, digits = 3, eps = 1e-4)
+  }
+
+  model_name <- try(x$model$seleccionado, silent = TRUE)
+  if (inherits(model_name, "try-error") || is.null(model_name)) model_name <- "NA"
+
+  status <- try(x$status, silent = TRUE)
+  if (inherits(status, "try-error") || is.null(status)) status <- "NA"
+
+  sec("[RESUMEN FINAL hexeInvMC]")
+  cat("Modelo seleccionado : ", model_name, "\n", sep = "")
+  cat("Decisión           : ", status, "\n", sep = "")
+
+  cat("\n")
+
+  sec("Parámetros del modelo (estimación y pruebas t)")
+  ct <- x$model$tabla_coeficientes
+  if (!is.null(ct) && is.matrix(ct) && ncol(ct) >= 4) {
+
+    df_ct <- data.frame(
+      termino = rownames(ct),
+      estimacion = formatC(ct[, 1], format = "f", digits = 6),
+      u_tipica = formatC(ct[, 2], format = "f", digits = 6),
+      t = formatC(ct[, 3], format = "f", digits = 3),
+      p = vapply(ct[, 4], fmt_p, character(1)),
+      stringsAsFactors = FALSE,
+      row.names = NULL
+    )
+
+    print(df_ct, row.names = FALSE, right = TRUE)
+  } else {
+    cat("No disponible.\n")
+  }
+
+  cat("\n")
+
+  sec("Estimación inversa")
+  est <- x$estimate
+  r2 <- x$model$r2
+
+  cat("R² del ajuste      : ", fmt_num(r2, 6), "\n", sep = "")
+  cat("y0 observado       : ", fmt_num(est$y0, 6), "\n", sep = "")
+  cat("u(y0)              : ", fmt_num(est$u_y0, 6), "\n", sep = "")
+  cat("x0 (media MC)      : ", fmt_num(est$x0_hat, 6), "\n", sep = "")
+  cat("u(x0) (sd MC)      : ", fmt_num(est$u_x0, 6), "\n", sep = "")
+  cat("IC central 95 % x0 : [", fmt_num(est$ic95_x0[1], 6), ", ", fmt_num(est$ic95_x0[2], 6), "]\n", sep = "")
+
+  mc <- x$mc
+  if (!is.null(mc) && is.finite(mc$frac_validas) && mc$frac_validas < 1) {
+    cat("Simulaciones utilizables : ", mc$n_validas, "/", mc$n_sim,
+        " (", formatC(100 * mc$frac_validas, format = "f", digits = 2), " %)\n", sep = "")
+  }
+
+  cat("\n")
+
+  sec("Pruebas y chequeos (interpretación)")
+  tests <- x$tests
+  if (!is.null(tests) && is.data.frame(tests) && nrow(tests) > 0) {
+
+    for (i in seq_len(nrow(tests))) {
+      pr <- as.character(tests$prueba[i])
+
+      estd <- ""
+      if (!is.null(tests$interpretacion_estadistica)) {
+        estd <- as.character(tests$interpretacion_estadistica[i])
+      }
+
+      metro <- ""
+      if (!is.null(tests$interpretacion_metrologica)) {
+        metro <- as.character(tests$interpretacion_metrologica[i])
+      }
+
+      stat <- tests$estadistico[i]
+      pval <- tests$p_value[i]
+      gl1 <- tests$gl1[i]
+
+      details <- character(0)
+      if (is.finite(stat)) details <- c(details, paste0("estadístico=", fmt_num(stat, 6)))
+      if (is.finite(gl1))  details <- c(details, paste0("gl=", as.integer(gl1)))
+      if (is.finite(pval)) details <- c(details, paste0("p=", fmt_p(pval)))
+
+      det_txt <- if (length(details) > 0) paste0(" (", paste(details, collapse = ", "), ")") else ""
+
+      cat("- ", pr, ": ", metro, "\n", sep = "")
+      if (nchar(estd) > 0) {
+        cat("  ", estd, det_txt, "\n", sep = "")
+      } else if (nchar(det_txt) > 0) {
+        cat("  ", det_txt, "\n", sep = "")
+      }
+    }
+
+  } else {
+    cat("No disponible.\n")
+  }
+
+  cat("\n")
+
+  sec("Alertas y notas")
+  alerts <- x$alerts
+  notes <- x$notes
+
+  if (!is.null(alerts) && length(alerts) > 0) {
+    cat("Alertas:\n")
+    for (a in alerts) cat(" - ", a, "\n", sep = "")
+  } else {
+    cat("Alertas: Ninguna.\n")
+  }
+
+  if (!is.null(notes) && length(notes) > 0) {
+    cat("\nNotas:\n")
+    for (n in notes) cat(" - ", n, "\n", sep = "")
+  }
+
+  cat("\n")
+
+  sec("Gráficos (RStudio)")
+  if (!is.null(x$plots) && is.list(x$plots)) {
+    nm <- names(x$plots)
+    nm <- nm[!vapply(x$plots[nm], is.null, logical(1))]
+    if (length(nm) > 0) {
+      cat("Disponibles en res$plots: ", paste(nm, collapse = ", "), "\n", sep = "")
+      cat("Ejemplo: print(res$plots$x0)\n")
+    } else {
+      cat("No disponibles.\n")
+    }
+  } else {
+    cat("No disponibles.\n")
+  }
+
+  hr("=")
+
+  invisible(x)
+}
+
+
+# =========================
+# File: R/hexeInvMC.R
+# =========================
+
 #' hexeInvMC
 #'
 #' Regresión inversa con incertidumbre en ambos ejes mediante simulación Monte Carlo extendida.
@@ -449,7 +618,7 @@ hexeInvMC <- function(x, ux, y, uy, y0, uy0,
       subtitle = paste0(
         "x0 = ", round(x0_hat, 6),
         " | u(x0) = ", round(u_x0, 6),
-        " | IC95% = [", round(ic95[1], 6), ", ", round(ic95[2], 6), "]",
+        " | IC central 95 % = [", round(ic95[1], 6), ", ", round(ic95[2], 6), "]",
         " | R² = ", ifelse(is.finite(r2), round(r2, 6), NA)
       ),
       x = "Concentración (x)",
@@ -470,14 +639,14 @@ hexeInvMC <- function(x, ux, y, uy, y0, uy0,
       ggplot2::geom_vline(xintercept = ic95, linetype = 2, linewidth = 0.9) +
       ggplot2::labs(
         title = "Distribución Monte Carlo de x0",
-        subtitle = paste0("media = ", round(x0_hat, 6), " | IC95% = [", round(ic95[1], 6), ", ", round(ic95[2], 6), "]"),
+        subtitle = paste0("media = ", round(x0_hat, 6), " | IC central 95 % = [", round(ic95[1], 6), ", ", round(ic95[2], 6), "]"),
         x = "x0 simulado",
         y = "Frecuencia"
       )
   } else {
     g_x0 <- ggplot2::ggplot() + ggplot2::labs(
       title = "Distribución Monte Carlo de x0",
-      subtitle = "No hubo simulaciones válidas de x0.",
+      subtitle = "No hubo simulaciones utilizables de x0.",
       x = "x0 simulado",
       y = "Frecuencia"
     )
@@ -500,8 +669,8 @@ hexeInvMC <- function(x, ux, y, uy, y0, uy0,
     ggplot2::stat_qq(size = 2, color = "black") +
     ggplot2::stat_qq_line(linewidth = 0.9) +
     ggplot2::labs(
-      title = "Diagnóstico — QQ-plot de residuos",
-      subtitle = "Desviaciones sistemáticas de la línea sugieren colas pesadas o asimetría.",
+      title = "Diagnóstico — Q–Q de residuos",
+      subtitle = "Desviaciones sistemáticas sugieren colas pesadas o asimetría.",
       x = "Cuantiles teóricos",
       y = "Cuantiles de residuos"
     )
@@ -513,7 +682,7 @@ hexeInvMC <- function(x, ux, y, uy, y0, uy0,
     ggplot2::geom_vline(xintercept = lev_thr, linetype = 2) +
     ggplot2::geom_point(size = 2, color = "black") +
     ggplot2::labs(
-      title = "Diagnóstico — influencia (leverage vs residuo estandarizado)",
+      title = "Diagnóstico — influencia",
       subtitle = paste0("Referencia: leverage ~ 2p/n = ", round(lev_thr, 3), " | Cook > 4/n = ", round(cook_thr, 3)),
       x = "Leverage",
       y = "Residuo estandarizado"
@@ -551,39 +720,7 @@ hexeInvMC <- function(x, ux, y, uy, y0, uy0,
   class(res) <- "hexeInvMC_result"
 
   print(g_main)
-
-  cat("===========================================\n")
-  cat("        [RESUMEN FINAL hexeInvMC]\n")
-  cat("===========================================\n")
-  cat("Modelo seleccionado     :", modelo_sel, "\n\n")
-  cat("Coeficientes del modelo (estimación, incertidumbre típica, valor t, valor p):\n")
-  print(coef_tab)
-
-  cat("\nR² del ajuste            :", ifelse(is.finite(r2), round(r2, 6), NA), "\n")
-  cat("x0 (media MC)            :", round(x0_hat, 6), "\n")
-  cat("u(x0) (sd MC)            :", round(u_x0, 6), "\n")
-  cat("IC95% para x0            : [", round(ic95[1], 6), ", ", round(ic95[2], 6), "]\n", sep = "")
-  cat("y0 observado             :", y0, "\n")
-  cat("u(y0)                    :", uy0, "\n")
-  cat("Simulaciones válidas     :", sum(validas), "/", n_sim, " (", round(100 * frac_valid, 2), " %)\n", sep = "")
-
-  cat("\nPruebas / chequeos:\n")
-  print(tests[, c("prueba", "estadistico", "gl1", "gl2", "p_value", "umbral",
-                  "interpretacion_estadistica", "interpretacion_metrologica")],
-        row.names = FALSE)
-
-  cat("\nDecisión                 :", status, "\n")
-  if (length(alerts) == 0) {
-    cat("Alertas                  : Ninguna.\n")
-  } else {
-    cat("Alertas:\n")
-    for (r in alerts) cat(" - ", r, "\n", sep = "")
-  }
-  if (length(notes) > 0) {
-    cat("\nNotas:\n")
-    for (r in notes) cat(" - ", r, "\n", sep = "")
-  }
-  cat("===========================================\n")
+  print(res)
 
   invisible(res)
 }

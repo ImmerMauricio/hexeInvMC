@@ -40,7 +40,7 @@ y0  <- 10.5
 uy0 <- 0.25
 
 # Llamado a la función principal (muestra el gráfico principal)
-hexeInvMC(
+res<-hexeInvMC(
   x, ux, y, uy,
   y0 = y0, uy0 = uy0,
   dist_x = "norm",   # Puede ser "norm", "unif" o "triangle"
