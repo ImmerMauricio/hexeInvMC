@@ -57,15 +57,6 @@ hexeInvMC(
 Además del gráfico principal, la función devuelve objetos `ggplot` que puedes imprimir cuando los necesites. La forma más simple es guardar el resultado en `res` y luego imprimir el gráfico deseado.
 
 ```r
-res <- hexeInvMC(
-  x, ux, y, uy,
-  y0 = y0, uy0 = uy0,
-  dist_x = "norm",
-  dist_y = "norm",
-  dist_y0 = "norm",
-  n_sim = 10000
-)
-
 print(res$plots$x0)
 print(res$plots$resid_fitted)
 print(res$plots$qq_resid)
