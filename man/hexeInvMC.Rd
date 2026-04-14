@@ -39,19 +39,10 @@ hexeInvMC(
 \item{n_sim}{Número de simulaciones Monte Carlo. Por defecto 10000.}
 }
 \value{
-Un resumen de resultados con x estimado, uc(x), modelo seleccionado y diagnóstico.
+(Invisiblemente) un objeto tipo lista con clase "hexeInvMC_result".
 }
 \description{
-Regresión inversa con incertidumbre en ambos ejes utilizando simulación Monte Carlo extendida.
-Selección automática de modelo (lineal simple o cuadrático), diagnóstico y visualización.
-}
-\examples{
-x <- c(1.2, 1.9, 2.9, 4.0, 4.7, 5.9)
-ux <- c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2)
-y <- c(3.4, 4.4, 7.2, 8.5, 10.8, 13.5)
-uy <- c(0.2, 0.2, 0.2, 0.4, 0.4, 0.4)
-hexeInvMC(x, ux, y, uy, y0 = 10.5, uy0 = 0.25,
-          dist_x = "norm", dist_y = "norm", dist_y0 = "norm",
-          n_sim = 10000)
-
+Regresión inversa con incertidumbre en ambos ejes mediante simulación Monte Carlo extendida.
+Selección automática de modelo polinómico de grado 1 o 2 (ambos lineales en los parámetros),
+diagnóstico y reporte metrológico con un gráfico principal.
 }

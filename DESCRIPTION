@@ -16,6 +16,6 @@ Imports:
     ggplot2,
     car,
     EnvStats
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 URL: https://github.com/ImmerMauricio/hexeInvMC
 BugReports: https://github.com/ImmerMauricio/hexeInvMC/issues
