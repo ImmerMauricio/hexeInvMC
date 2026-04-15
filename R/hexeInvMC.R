@@ -166,25 +166,214 @@ print.hexeInvMC_result <- function(x, ...) {
 # =========================
 # File: R/hexeInvMC.R
 # =========================
-
 #' hexeInvMC
 #'
-#' Regresión inversa con incertidumbre en ambos ejes mediante simulación Monte Carlo extendida.
-#' Selección automática de modelo polinómico de grado 1 o 2 (ambos lineales en los parámetros),
-#' diagnóstico y reporte metrológico con un gráfico principal.
+#' @description
+#' Regresión inversa para curvas de calibración con incertidumbre en ambos ejes, basada en
+#' simulación Monte Carlo extendida. Estima la concentración \eqn{x_0} a partir de una señal
+#' observada \eqn{y_0}, propagando incertidumbre típica tanto en el eje \eqn{x} como en el eje \eqn{y}.
 #'
-#' @param x Vector numérico con los valores de concentración (x).
-#' @param ux Vector numérico con las incertidumbres típicas de x.
-#' @param y Vector numérico con los valores de respuesta (y).
-#' @param uy Vector numérico con las incertidumbres típicas de y.
-#' @param y0 Valor observado a invertir.
-#' @param uy0 Incertidumbre típica de y0.
-#' @param dist_x Distribución para x: "norm", "unif" o "triangle".
-#' @param dist_y Distribución para y: "norm", "unif" o "triangle".
-#' @param dist_y0 Distribución para y0: "norm", "unif" o "triangle".
-#' @param n_sim Número de simulaciones Monte Carlo. Por defecto 10000.
+#' @details
+#' # Enfoque metrológico (qué hace y por qué)
+#' En un laboratorio, \eqn{x} y \eqn{y} no son “valores exactos”: son resultados con incertidumbre de medida.
+#' En calibración, el problema operativo es: dado un resultado \eqn{y_0} con incertidumbre típica \eqn{u(y_0)},
+#' estimar \eqn{x_0} con su incertidumbre típica \eqn{u(x_0)}.
 #'
-#' @return (Invisiblemente) un objeto tipo lista con clase "hexeInvMC_result".
+#' Este paquete implementa una estrategia de propagación tipo Monte Carlo que:
+#' \itemize{
+#'   \item respeta que \eqn{x}, \eqn{y} y \eqn{y_0} tienen incertidumbre típica,
+#'   \item permite distribuciones simples para representar esa incertidumbre,
+#'   \item entrega diagnóstico e interpretación para usuarios no estadísticos,
+#'   \item devuelve un objeto indexable para usuarios avanzados.
+#' }
+#'
+#' # Modelos considerados
+#' El paquete selecciona automáticamente entre:
+#' \itemize{
+#'   \item \strong{Grado 1 (función lineal de calibración)}: \eqn{y = a + b x}
+#'   \item \strong{Grado 2 (función de segundo orden)}: \eqn{y = a + b x + c x^2}
+#' }
+#' Nota: ambos ajustes son lineales en los parámetros \eqn{a, b, c}, aunque el modelo de grado 2 no sea lineal en \eqn{x}.
+#'
+#' # Algoritmo (resumen operacional)
+#' Para cada simulación \eqn{k}:
+#' \enumerate{
+#'   \item Se simulan realizaciones \eqn{x_i^{(k)}}, \eqn{y_i^{(k)}} y \eqn{y_0^{(k)}} usando \eqn{x_i, u(x_i)},
+#'   \eqn{y_i, u(y_i)} y \eqn{y_0, u(y_0)}.
+#'   \item Se ajusta el modelo seleccionado (grado 1 o grado 2) con mínimos cuadrados ordinarios.
+#'   \item Se simulan coeficientes del ajuste alrededor de su estimación (usando la incertidumbre típica de los coeficientes).
+#'   \item Se resuelve la inversión \eqn{y_0^{(k)} \rightarrow x_0^{(k)}}.
+#' }
+#' Al final:
+#' \itemize{
+#'   \item \eqn{\hat{x}_0}: media de \eqn{x_0^{(k)}}.
+#'   \item \eqn{u(x_0)}: desviación estándar de \eqn{x_0^{(k)}} (incertidumbre típica).
+#'   \item Intervalo central 95 \%: cuantiles 2,5 \% y 97,5 \% de \eqn{x_0^{(k)}}.
+#' }
+#'
+#' # Distribuciones soportadas (para incertidumbres típicas)
+#' Las incertidumbres de entrada se interpretan como \strong{incertidumbres típicas} (k = 1).
+#' \itemize{
+#'   \item \code{"norm"}: Normal con media = valor y desviación estándar = incertidumbre típica.
+#'   \item \code{"unif"}: Uniforme en [valor - u, valor + u].
+#'   \item \code{"triangle"}: Triangular en [valor - u, valor + u] con modo en el valor.
+#' }
+#'
+#' # Pruebas y chequeos reportados (según aplique)
+#' La salida incluye una tabla \code{res$tests} con interpretación estadística y metrológica:
+#' \itemize{
+#'   \item Mandel (ISO 8466-1:2021, \emph{Water quality — Calibration and evaluation of analytical methods — Part 1: Linear calibration function}):
+#'   chequeo de curvatura para decidir si una recta es suficiente.
+#'   \item Unicidad del cuadrático (ISO 8466-2:2001, \emph{Water quality — Calibration and evaluation of analytical methods and estimation of performance characteristics — Part 2: Calibration strategy for non-linear second-order calibration functions}):
+#'   evalúa si la inversión \eqn{y \rightarrow x} es única en el rango (monotonía).
+#'   \item Chi-cuadrado informativo (ISO/TS 28037:2010, \emph{Determination and use of straight-line calibration functions}):
+#'   consistencia entre la dispersión observada y las \eqn{u(y)} declaradas.
+#'   \item Diagnósticos: R², outliers (residuo estandarizado), influencia (Cook), heterocedasticidad (ncvTest), normalidad (Shapiro–Wilk).
+#' }
+#'
+#' # Significado de la decisión (APTO / APTO_CON_ALERTAS / NO_APTO)
+#' La salida clasifica el uso del modelo para inversión \eqn{y_0 \rightarrow x_0} así:
+#' \itemize{
+#'   \item \strong{APTO}: no aparecen alertas relevantes. La inversión es estable y los chequeos no señalan problemas.
+#'   \item \strong{APTO_CON_ALERTAS}: hay señales que sugieren revisión (por ejemplo, dispersión mayor a la esperada según \eqn{u(y)} o diagnósticos que merecen atención),
+#'   pero el resultado puede ser utilizable si el laboratorio entiende y controla el riesgo.
+#'   \item \strong{NO_APTO}: el resultado no es confiable para uso rutinario (por ejemplo, inversión no unívoca en el rango para un modelo cuadrático,
+#'   o inestabilidad marcada de la inversión en la simulación).
+#' }
+#'
+#' \strong{Lectura metrológica rápida de alertas frecuentes}:
+#' \itemize{
+#'   \item \emph{“Dispersión mayor a la esperada según u(y)”}: la tendencia está, pero las \eqn{u(y)} declaradas son optimistas,
+#'   o existe una fuente adicional de variación (instrumento, preparación, matriz, día, analista, etc.).
+#'   \item \emph{“Inversión no unívoca (x* dentro del rango)”}: con un cuadrático, el mismo \eqn{y} puede corresponder a dos \eqn{x};
+#'   en ese rango, \eqn{y \rightarrow x} no es una función única.
+#'   \item \emph{Outliers / influencia}: uno o más puntos podrían estar dominando el ajuste o salirse de la tendencia;
+#'   antes de “culpar al modelo”, revisa trazabilidad documental del dato (preparación, transcripción, condición instrumental).
+#' }
+#'
+#' # Buenas prácticas para curvas “lindas” (recomendaciones prácticas)
+#' Estas sugerencias no son una norma rígida: son reglas de diseño que suelen producir curvas más estables, más interpretables
+#' y más felices para el usuario (amateur o purista).
+#'
+#' \strong{Diseño del rango y niveles}:
+#' \itemize{
+#'   \item \strong{Usa al menos 8 niveles} de calibración cuando sea posible. Con pocos puntos, cualquier chequeo pierde potencia y la curva “se ve bonita” pero no se sostiene.
+#'   \item \strong{Distribuye los niveles de forma equiespaciada} en el rango útil. Evita “montones” de puntos en un extremo y vacíos en el otro.
+#'   \item \strong{Evita rangos enormes}: como guía práctica, procura no exceder \strong{dos órdenes de magnitud} en un mismo ajuste.
+#'   Si necesitas más rango, considera segmentar (dos curvas) o justificar cuidadosamente la forma del modelo y las \eqn{u(y)}.
+#'   \item \strong{No extrapoles}: usa \eqn{y_0} dentro del rango de \eqn{y} observado en la calibración. Fuera de rango, el riesgo se dispara y el diagnóstico se vuelve engañoso.
+#' }
+#'
+#' \strong{Replicación y control}:
+#' \itemize{
+#'   \item Incluye \strong{réplicas} en al menos 1–2 niveles (por ejemplo, nivel medio y nivel alto). Eso te ayuda a detectar dispersión real y a construir \eqn{u(y)} con sentido.
+#'   \item Si hay posibilidad de deriva, \strong{randomiza el orden} de lectura (o alterna bajo–alto–medio) para que el tiempo no se convierta en “curvatura falsa”.
+#'   \item Si tienes material de referencia certificado (MRC), úsalo para anclar el rango y hacer coherentes \eqn{x} y \eqn{u(x)}.
+#' }
+#'
+#' \strong{Sobre \eqn{u(x)} y \eqn{u(y)}}:
+#' \itemize{
+#'   \item Asegúrate de que \code{ux} y \code{uy} sean \strong{incertidumbres típicas} (k = 1). No mezcles k distintos sin convertir.
+#'   \item Si \eqn{u(y)} cambia con el nivel (heterocedasticidad), el paquete te lo va a señalar. La lectura metrológica es simple:
+#'   tu modelo puede estar bien, pero \strong{la incertidumbre de medida no es constante}.
+#'   \item Si el chi-cuadrado informativo indica mayor dispersión que la esperada, la pregunta correcta suele ser:
+#'   “¿mis \eqn{u(y)} están subestimadas o tengo una fuente adicional de variación que no estoy controlando?”
+#' }
+#'
+#' \strong{Elegir distribuciones}:
+#' \itemize{
+#'   \item \code{"norm"} es una elección razonable cuando el resultado es suma de muchas pequeñas contribuciones (comportamiento aproximadamente gaussiano).
+#'   \item \code{"unif"} encaja cuando solo sabes que estás dentro de un intervalo y no tienes forma de preferir el centro.
+#'   \item \code{"triangle"} sirve cuando hay intervalo, pero el valor central es claramente el más probable.
+#' }
+#'
+#' \strong{Checklist antes de confiar}:
+#' \itemize{
+#'   \item Mira \code{res$tests} y lee primero la columna de interpretación metrológica.
+#'   \item Si hay \strong{APTO_CON_ALERTAS}, decide si la alerta afecta el uso real (por ejemplo, reporte regulatorio vs decisión interna).
+#'   \item Si sale \strong{NO_APTO}, no “negocies con el resultado”: ajusta la curva (diseño/rango/\eqn{u(y)}) antes de usarla en rutina.
+#' }
+#'
+#' # Cómo indexar resultados (para usuarios principiantes y avanzados)
+#' \strong{Siempre guarda el resultado}:
+#' \preformatted{res <- hexeInvMC(...)}
+#'
+#' Luego puedes extraer:
+#' \itemize{
+#'   \item \code{res$estimate$x0_hat}  valor estimado de \eqn{x_0}.
+#'   \item \code{res$estimate$u_x0}    incertidumbre típica \eqn{u(x_0)}.
+#'   \item \code{res$estimate$ic95_x0} intervalo central 95 \% (c(límite inferior, límite superior)).
+#'   \item \code{res$model$tabla_coeficientes} coeficientes del modelo con incertidumbre típica, t y p.
+#'   \item \code{res$tests} tabla completa de pruebas/chequeos con interpretaciones.
+#' }
+#'
+#' # Gráficos (modo RStudio)
+#' La función imprime un gráfico principal. Gráficos adicionales (opcional) están en \code{res$plots}:
+#' \itemize{
+#'   \item \code{print(res$plots$x0)}
+#'   \item \code{print(res$plots$resid_fitted)}
+#'   \item \code{print(res$plots$qq_resid)}
+#'   \item \code{print(res$plots$influence)}
+#' }
+#'
+#' @param x Vector numérico con valores de concentración (misma unidad que \code{ux}).
+#' @param ux Vector numérico con incertidumbres típicas \eqn{u(x)} (misma unidad que \code{x}).
+#' @param y Vector numérico con valores de respuesta (misma unidad que \code{uy}).
+#' @param uy Vector numérico con incertidumbres típicas \eqn{u(y)} (misma unidad que \code{y}).
+#' @param y0 Valor observado de respuesta a invertir.
+#' @param uy0 Incertidumbre típica \eqn{u(y_0)}.
+#' @param dist_x Distribución para simular \code{x} desde \code{x} y \code{ux}. Opciones: \code{"norm"}, \code{"unif"}, \code{"triangle"}.
+#' @param dist_y Distribución para simular \code{y} desde \code{y} y \code{uy}. Opciones: \code{"norm"}, \code{"unif"}, \code{"triangle"}.
+#' @param dist_y0 Distribución para simular \code{y0} desde \code{y0} y \code{uy0}. Opciones: \code{"norm"}, \code{"unif"}, \code{"triangle"}.
+#' @param n_sim Número de simulaciones Monte Carlo (entero >= 1000).
+#'
+#' @return
+#' Un objeto (invisiblemente) con clase \code{"hexeInvMC_result"}.
+#' Contiene \code{$estimate}, \code{$model}, \code{$tests} y \code{$plots}.
+#'
+#' @examples
+#' library(hexeInvMC)
+#'
+#' # Ejemplo 1: uso típico (gráfico principal + resumen)
+#' x  <- c(1.2, 1.9, 2.9, 4.0, 4.7, 5.9)
+#' ux <- c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2)
+#' y  <- c(3.4, 4.4, 7.2, 8.5, 10.8, 13.5)
+#' uy <- c(0.2, 0.2, 0.2, 0.4, 0.4, 0.4)
+#' y0  <- 10.5
+#' uy0 <- 0.25
+#'
+#' res <- hexeInvMC(
+#'   x, ux, y, uy,
+#'   y0 = y0, uy0 = uy0,
+#'   dist_x = "norm",
+#'   dist_y = "norm",
+#'   dist_y0 = "norm",
+#'   n_sim = 10000
+#' )
+#'
+#' # Ejemplo 2: indexación (solo lo que necesitas para un informe)
+#' x0_hat <- res$estimate$x0_hat
+#' u_x0   <- res$estimate$u_x0
+#' ic95   <- res$estimate$ic95_x0
+#'
+#' # Ejemplo 3: resumen “listo para reporte” (data.frame de una fila)
+#' reporte <- data.frame(
+#'   x0_hat = x0_hat,
+#'   u_x0 = u_x0,
+#'   ic95_inf = ic95[1],
+#'   ic95_sup = ic95[2]
+#' )
+#' reporte
+#'
+#' # Ejemplo 4: revisar pruebas y diagnósticos (tabla completa)
+#' res$tests
+#'
+#' # Ejemplo 5: gráficos adicionales (opcional, en RStudio)
+#' print(res$plots$x0)
+#' print(res$plots$resid_fitted)
+#' print(res$plots$qq_resid)
+#' print(res$plots$influence)
+#'
 #' @export
 hexeInvMC <- function(x, ux, y, uy, y0, uy0,
                       dist_x = "norm", dist_y = "norm", dist_y0 = "norm",
